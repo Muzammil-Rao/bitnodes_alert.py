@@ -7,6 +7,9 @@ BOT_TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
 CHAT_ID = "927311167"
 BITNODES_API = "https://bitnodes.io/api/v1/snapshots/latest/"
 
+# === STATE ===
+previous_nodes = None  # Store last snapshot node count
+
 # === SEND TELEGRAM ALERT ===
 def send_message(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -18,8 +21,10 @@ def send_message(message):
     except Exception as e:
         print("⚠️ Error sending message:", e)
 
-# === CHECK BITNODES STATUS ===
+# === CHECK BITNODES ===
 def check_bitnodes():
+    global previous_nodes
+
     try:
         response = requests.get(BITNODES_API)
         if response.status_code == 200:
@@ -30,25 +35,36 @@ def check_bitnodes():
             if total_nodes is None or timestamp is None:
                 raise ValueError("Invalid data from API")
 
-            # Convert timestamp to readable UTC time
             readable_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S UTC')
 
+            # Calculate difference
+            if previous_nodes is not None:
+                diff = total_nodes - previous_nodes
+                if diff > 0:
+                    trend = f"📈 Increase in Bitcoin nodes: +{diff}"
+                    signal = "📊 Signal: Bullish 🔼"
+                elif diff < 0:
+                    trend = f"📉 Decrease in Bitcoin nodes: {diff}"
+                    signal = "📊 Signal: Bearish 🔽"
+                else:
+                    trend = "➖ No change in Bitcoin nodes"
+                    signal = "📊 Signal: Neutral ⏸️"
+            else:
+                trend = "ℹ️ First snapshot - tracking started"
+                signal = "📊 Signal: N/A"
+
+            # Save current node count
+            previous_nodes = total_nodes
+
             # Final message
-            msg = f"🔔 Bitnodes Snapshot:\n🧠 Total Nodes: {total_nodes}\n⏰ Time: {readable_time}"
+            msg = f"""🚨 Bitnodes Alert!
+
+{trend}
+🧠 Total Nodes: {total_nodes}
+⏰ Time: {readable_time}
+{signal}"""
+
             print(msg)
             send_message(msg)
         else:
-            print("❌ Failed to fetch data from Bitnodes:", response.text)
-            send_message("⚠️ Failed to fetch Bitnodes data from API.")
-    except Exception as e:
-        print("⚠️ Exception occurred while fetching data:", e)
-        send_message("⚠️ Exception occurred while fetching Bitnodes data.")
-
-# === STARTUP ===
-print("🚀 Bitnodes Alert Bot is running...")
-send_message("🚀 Bitnodes Alert Bot started successfully!")
-
-# === LOOP FOREVER ===
-while True:
-    check_bitnodes()
-    time.sleep(300)  # 5 minutes delay
+            print("❌ Failed to fetch data from Bitnodes:", response.text
