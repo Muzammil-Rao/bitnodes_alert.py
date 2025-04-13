@@ -1,50 +1,62 @@
-import time
 import requests
-import telegram
-from telegram.ext import Updater, CommandHandler
+import time
+import telebot
 
-TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
-CHAT_ID = "927311167"
+# === CONFIGURATION ===
+BOT_TOKEN = '7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs'
+CHAT_ID = '927311167'
+CHECK_INTERVAL = 300  # 5 minutes
+SIGNIFICANT_DROP = 100  # threshold for alert
 
-bot = telegram.Bot(token=TOKEN)
-previous_nodes = None
-SIGNIFICANT_CHANGE = 200  # +/- change to trigger alert
+bot = telebot.TeleBot(BOT_TOKEN)
 
-def get_node_count():
+# === GLOBAL STATE ===
+last_node_count = None
+
+# === BOT COMMAND: /status ===
+@bot.message_handler(commands=['status'])
+def send_status(message):
     try:
-        response = requests.get("https://bitnodes.io/api/v1/snapshots/latest/")
-        return response.json()["total_nodes"]
+        data = requests.get("https://bitnodes.io/api/v1/snapshots/latest/").json()
+        node_count = data['total_nodes']
+        bot.reply_to(message, f"📊 Current Total Nodes: {node_count}\n⏱️ Time: {int(time.time())}")
     except Exception as e:
-        return None
+        bot.reply_to(message, f"❌ Error fetching status:\n{e}")
 
-def send_alert(current, previous):
-    change = current - previous
-    emoji = "📉" if change < 0 else "📈"
-    msg = f"""🚨 Bitnodes Alert!
-{emoji} Change in Bitcoin Nodes: {change}
-🧠 Total Nodes: {current}
-⏰ Time: {int(time.time())}"""
-    bot.send_message(chat_id=CHAT_ID, text=msg)
-
-def status(update, context):
-    current = get_node_count()
-    update.message.reply_text(f"🔍 Current Bitcoin Nodes: {current}")
-
-def main_loop():
-    global previous_nodes
+# === ALERT LOOP ===
+def check_bitnodes():
+    global last_node_count
     while True:
-        current_nodes = get_node_count()
-        if current_nodes is not None:
-            if previous_nodes is not None:
-                if abs(current_nodes - previous_nodes) >= SIGNIFICANT_CHANGE:
-                    send_alert(current_nodes, previous_nodes)
-            previous_nodes = current_nodes
-        time.sleep(300)  # 5 minutes
+        try:
+            response = requests.get("https://bitnodes.io/api/v1/snapshots/latest/").json()
+            current_nodes = response['total_nodes']
 
-if __name__ == "__main__":
-    updater = Updater(token=TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("status", status))
-    updater.start_polling()
+            if last_node_count is not None:
+                change = current_nodes - last_node_count
+                percent_change = (change / last_node_count) * 100
 
-    main_loop()
+                if abs(change) >= SIGNIFICANT_DROP:
+                    symbol = "📈 Increase" if change > 0 else "📉 Decrease"
+                    alert = (
+                        f"🚨 Bitnodes Alert!\n"
+                        f"{symbol} in Bitcoin Nodes: {change} ({percent_change:.2f}%)\n"
+                        f"🧠 Total Nodes: {current_nodes}\n"
+                        f"⏰ Time: {int(time.time())}"
+                    )
+                    bot.send_message(CHAT_ID, alert)
+
+            last_node_count = current_nodes
+        except Exception as e:
+            bot.send_message(CHAT_ID, f"⚠️ Error in node check:\n{e}")
+
+        time.sleep(CHECK_INTERVAL)
+
+# === RUN THE MONITOR IN BACKGROUND ===
+import threading
+monitor_thread = threading.Thread(target=check_bitnodes)
+monitor_thread.daemon = True
+monitor_thread.start()
+
+print("🚀 Bot is running...")
+bot.polling()
+
