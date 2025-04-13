@@ -1,5 +1,6 @@
 import requests
 import time
+import datetime
 
 # === CONFIG ===
 BOT_TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
@@ -13,28 +14,41 @@ def send_message(message):
     try:
         response = requests.post(url, data=data)
         if response.status_code != 200:
-            print("Failed to send message:", response.text)
+            print("❌ Failed to send message:", response.text)
     except Exception as e:
-        print("Error sending message:", e)
+        print("⚠️ Error sending message:", e)
 
-# === MAIN LOGIC ===
+# === CHECK BITNODES STATUS ===
 def check_bitnodes():
     try:
         response = requests.get(BITNODES_API)
-        data = response.json()
-        total_nodes = data.get("total_nodes", "N/A")
-        timestamp = data.get("timestamp", "Unknown")
-        msg = f"🔔 Bitnodes Snapshot:\n🧠 Total Nodes: {total_nodes}\n⏰ Time: {timestamp}"
-        print(msg)
-        send_message(msg)
-    except Exception as e:
-        print("Error fetching bitnodes data:", e)
+        if response.status_code == 200:
+            data = response.json()
+            total_nodes = data.get("total_nodes")
+            timestamp = data.get("timestamp")
 
-# === STARTUP MESSAGE ===
+            if total_nodes is None or timestamp is None:
+                raise ValueError("Invalid data from API")
+
+            # Convert timestamp to readable UTC time
+            readable_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+            # Final message
+            msg = f"🔔 Bitnodes Snapshot:\n🧠 Total Nodes: {total_nodes}\n⏰ Time: {readable_time}"
+            print(msg)
+            send_message(msg)
+        else:
+            print("❌ Failed to fetch data from Bitnodes:", response.text)
+            send_message("⚠️ Failed to fetch Bitnodes data from API.")
+    except Exception as e:
+        print("⚠️ Exception occurred while fetching data:", e)
+        send_message("⚠️ Exception occurred while fetching Bitnodes data.")
+
+# === STARTUP ===
 print("🚀 Bitnodes Alert Bot is running...")
 send_message("🚀 Bitnodes Alert Bot started successfully!")
 
 # === LOOP FOREVER ===
 while True:
     check_bitnodes()
-    time.sleep(300)  # 5 minutes
+    time.sleep(300)  # 5 minutes delay
