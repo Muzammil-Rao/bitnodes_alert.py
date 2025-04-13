@@ -1,44 +1,40 @@
-import time
 import requests
-import datetime
-import telegram
+import time
 
-TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
+# === CONFIG ===
+BOT_TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
 CHAT_ID = "927311167"
+BITNODES_API = "https://bitnodes.io/api/v1/snapshots/latest/"
 
-bot = telegram.Bot(token=TOKEN)
-url = "https://bitnodes.io/api/v1/snapshots/latest/"
+# === SEND TELEGRAM ALERT ===
+def send_message(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": message}
+    try:
+        response = requests.post(url, data=data)
+        if response.status_code != 200:
+            print("Failed to send message:", response.text)
+    except Exception as e:
+        print("Error sending message:", e)
 
-def get_node_count():
-    response = requests.get(url)
-    data = response.json()
-    return data["total_nodes"]
+# === MAIN LOGIC ===
+def check_bitnodes():
+    try:
+        response = requests.get(BITNODES_API)
+        data = response.json()
+        total_nodes = data.get("total_nodes", "N/A")
+        timestamp = data.get("timestamp", "Unknown")
+        msg = f"🔔 Bitnodes Snapshot:\n🧠 Total Nodes: {total_nodes}\n⏰ Time: {timestamp}"
+        print(msg)
+        send_message(msg)
+    except Exception as e:
+        print("Error fetching bitnodes data:", e)
 
-previous_nodes = get_node_count()
+# === STARTUP MESSAGE ===
+print("🚀 Bitnodes Alert Bot is running...")
+send_message("🚀 Bitnodes Alert Bot started successfully!")
 
-# Initial success message
- bot.send_message(chat_id=CHAT_ID, text=f"""🚀 Bitnodes Alert Bot started successfully!
-🔔 Bitnodes Snapshot:
-🧠 Total Nodes: {previous_nodes}
-⏰ Time: {int(time.time())}
-""")
-
+# === LOOP FOREVER ===
 while True:
+    check_bitnodes()
     time.sleep(300)  # 5 minutes
-
-    current_nodes = get_node_count()
-    change = current_nodes - previous_nodes
-
-    # Alert only if there's a noticeable change (e.g., 100+)
-    if abs(change) >= 100:
-        direction = "📉 Decrease" if change < 0 else "📈 Increase"
-        msg = f"""⚠️ Bitnodes Alert!
-
-{direction} in Bitcoin nodes: {change}
-Total Nodes: {current_nodes}
-⏰ Time: {int(time.time())}
-"""
-        bot.send_message(chat_id=CHAT_ID, text=msg)
-        previous_nodes = current_nodes
-    else:
-        print(f"No major change. Current: {current_nodes}, Previous: {previous_nodes}")
