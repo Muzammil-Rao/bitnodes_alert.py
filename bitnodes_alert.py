@@ -9,7 +9,7 @@ CHAT_ID = "927311167"
 bot = telegram.Bot(token=TOKEN)
 url = "https://bitnodes.io/api/v1/snapshots/latest/"
 
-def get_node_count():
+async def get_node_count():
     response = requests.get(url)
     data = response.json()
     return data["total_nodes"]
