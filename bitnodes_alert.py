@@ -1,41 +1,50 @@
-import requests
 import time
+import requests
+import telegram
+from telegram.ext import Updater, CommandHandler
 
-# === CONFIG ===
-BOT_TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
+TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
 CHAT_ID = "927311167"
-BITNODES_API = "https://bitnodes.io/api/v1/snapshots/latest/"
 
-# === SEND TELEGRAM ALERT ===
-def send_message(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": message}
+bot = telegram.Bot(token=TOKEN)
+previous_nodes = None
+SIGNIFICANT_CHANGE = 200  # +/- change to trigger alert
+
+def get_node_count():
     try:
-        response = requests.post(url, data=data)
-        if response.status_code != 200:
-            print("Failed to send message:", response.text)
+        response = requests.get("https://bitnodes.io/api/v1/snapshots/latest/")
+        return response.json()["total_nodes"]
     except Exception as e:
-        print("Error sending message:", e)
+        return None
 
-# === MAIN LOGIC ===
-def check_bitnodes():
-    try:
-        response = requests.get(BITNODES_API)
-        data = response.json()
-        total_nodes = data.get("total_nodes", "N/A")
-        timestamp = data.get("timestamp", "Unknown")
-        msg = f"🔔 Bitnodes Snapshot:\n🧠 Total Nodes: {total_nodes}\n⏰ Time: {timestamp}"
-        print(msg)
-        send_message(msg)
-    except Exception as e:
-        print("Error fetching bitnodes data:", e)
+def send_alert(current, previous):
+    change = current - previous
+    emoji = "📉" if change < 0 else "📈"
+    msg = f"""🚨 Bitnodes Alert!
+{emoji} Change in Bitcoin Nodes: {change}
+🧠 Total Nodes: {current}
+⏰ Time: {int(time.time())}"""
+    bot.send_message(chat_id=CHAT_ID, text=msg)
 
-# === STARTUP MESSAGE ===
-print("🚀 Bitnodes Alert Bot is running...")
-send_message("🚀 Bitnodes Alert Bot started successfully!")
+def status(update, context):
+    current = get_node_count()
+    update.message.reply_text(f"🔍 Current Bitcoin Nodes: {current}")
 
-# === LOOP FOREVER ===
-while True:
-    check_bitnodes()
-    time.sleep(300)  # 5 minutes
+def main_loop():
+    global previous_nodes
+    while True:
+        current_nodes = get_node_count()
+        if current_nodes is not None:
+            if previous_nodes is not None:
+                if abs(current_nodes - previous_nodes) >= SIGNIFICANT_CHANGE:
+                    send_alert(current_nodes, previous_nodes)
+            previous_nodes = current_nodes
+        time.sleep(300)  # 5 minutes
 
+if __name__ == "__main__":
+    updater = Updater(token=TOKEN, use_context=True)
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("status", status))
+    updater.start_polling()
+
+    main_loop()
