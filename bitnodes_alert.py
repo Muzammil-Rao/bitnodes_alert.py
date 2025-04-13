@@ -7,8 +7,7 @@ BOT_TOKEN = "7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs"
 CHAT_ID = "927311167"
 BITNODES_API = "https://bitnodes.io/api/v1/snapshots/latest/"
 
-# === STATE ===
-previous_nodes = None  # Store last snapshot node count
+previous_nodes = None  # For tracking node change
 
 # === SEND TELEGRAM ALERT ===
 def send_message(message):
@@ -37,7 +36,6 @@ def check_bitnodes():
 
             readable_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S UTC')
 
-            # Calculate difference
             if previous_nodes is not None:
                 diff = total_nodes - previous_nodes
                 if diff > 0:
@@ -53,10 +51,8 @@ def check_bitnodes():
                 trend = "ℹ️ First snapshot - tracking started"
                 signal = "📊 Signal: N/A"
 
-            # Save current node count
             previous_nodes = total_nodes
 
-            # Final message
             msg = f"""🚨 Bitnodes Alert!
 
 {trend}
@@ -67,4 +63,17 @@ def check_bitnodes():
             print(msg)
             send_message(msg)
         else:
-            print("❌ Failed to fetch data from Bitnodes:", response.text
+            print("❌ Failed to fetch data from Bitnodes:", response.text)
+            send_message("⚠️ Failed to fetch Bitnodes data from API.")
+    except Exception as e:
+        print("⚠️ Exception occurred while fetching data:", e)
+        send_message("⚠️ Exception occurred while fetching Bitnodes data.")
+
+# === STARTUP ===
+print("🚀 Bitnodes Alert Bot is running...")
+send_message("🚀 Bitnodes Alert Bot with Signal Detection started!")
+
+# === LOOP ===
+while True:
+    check_bitnodes()
+    time.sleep(300)  # Run every 5 minutes
