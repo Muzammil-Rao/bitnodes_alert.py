@@ -9,7 +9,7 @@ CHAT_ID = "927311167"
 bot = telegram.Bot(token=TOKEN)
 url = "https://bitnodes.io/api/v1/snapshots/latest/"
 
-async def get_node_count():
+def get_node_count():
     response = requests.get(url)
     data = response.json()
     return data["total_nodes"]
@@ -17,7 +17,7 @@ async def get_node_count():
 previous_nodes = get_node_count()
 
 # Initial success message
-await bot.send_message(chat_id=CHAT_ID, text=f"""🚀 Bitnodes Alert Bot started successfully!
+ bot.send_message(chat_id=CHAT_ID, text=f"""🚀 Bitnodes Alert Bot started successfully!
 🔔 Bitnodes Snapshot:
 🧠 Total Nodes: {previous_nodes}
 ⏰ Time: {int(time.time())}
