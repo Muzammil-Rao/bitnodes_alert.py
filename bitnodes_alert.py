@@ -17,7 +17,7 @@ def get_node_count():
 previous_nodes = get_node_count()
 
 # Initial success message
-bot.send_message(chat_id=CHAT_ID, text=f"""🚀 Bitnodes Alert Bot started successfully!
+await bot.send_message(chat_id=CHAT_ID, text=f"""🚀 Bitnodes Alert Bot started successfully!
 🔔 Bitnodes Snapshot:
 🧠 Total Nodes: {previous_nodes}
 ⏰ Time: {int(time.time())}
