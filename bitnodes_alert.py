@@ -96,5 +96,8 @@ if __name__ == "__main__":
 
     threading.Thread(target=periodic).start()
     PORT = int(os.environ.get("PORT", 5000))
-    bot.set_webhook(f"https://your-railway-url.up.railway.app/{BOT_TOKEN}")
+    
+    # 👇👇👇 Webhook URL updated here
+    bot.set_webhook("https://illustrious-renewal.up.railway.app/7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs")
+    
     app.run(host="0.0.0.0", port=PORT)
