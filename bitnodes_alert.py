@@ -9,9 +9,8 @@ from flask import Flask, request
 from datetime import datetime
 
 # --- Config ---
-BOT_TOKEN = os.getenv("7710027411:AAEtCULzYhfrQS4lzHzV2-UA5BhLHIel8Zs
-")
-CHAT_ID = os.getenv("927311167")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 API_URL = 'https://bitnodes.io/api/v1/snapshots/latest/'
 
 bot = Bot(token=BOT_TOKEN)
